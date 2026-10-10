@@ -2,27 +2,38 @@
 /* eslint-disable */
 import { request } from '@umijs/max';
 
-/** 获取当前的用户 GET /api/currentUser */
+
+/** 获取当前用户 GET /api/user/current */
 export async function currentUser(options?: { [key: string]: any }) {
-  return request<{
-    data: API.CurrentUser;
-  }>('/api/currentUser', {
+  return request<API.BaseResponse<API.CurrentUser>>('/api/user/current', {
     method: 'GET',
     ...(options || {}),
   });
 }
 
-/** 退出登录接口 POST /api/login/outLogin */
-export async function outLogin(options?: { [key: string]: any }) {
-  return request<Record<string, any>>('/api/login/outLogin', {
+/** 退出登录接口 POST /api/user/logout */
+export async function logout(options?: { [key: string]: any }) {
+  return request<API.BaseResponse<number>>('/api/user/logout', {
     method: 'POST',
     ...(options || {}),
   });
 }
 
-/** 登录接口 POST /api/login/account */
+/** 登录接口 POST /api/user/login */
 export async function login(body: API.LoginParams, options?: { [key: string]: any }) {
-  return request<API.LoginResult>('/api/login/account', {
+  return request<API.BaseResponse<API.LoginResult>>('/api/user/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 注册接口 POST /api/user/register */
+export async function register(body: API.RegisterParams, options?: { [key: string]: any }) {
+  return request<API.BaseResponse<API.RegisterResult>>('/api/user/register', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -40,18 +51,12 @@ export async function getNotices(options?: { [key: string]: any }) {
   });
 }
 
-/** 获取规则列表 GET /api/rule */
-export async function rule(
-  params: {
-    // query
-    /** 当前的页码 */
-    current?: number;
-    /** 页面的容量 */
-    pageSize?: number;
-  },
+/** 获取搜索用户结果 GET /api/user/search */
+export async function searchUsers(
+  params: API.UserSearchParams = {},
   options?: { [key: string]: any },
 ) {
-  return request<API.RuleList>('/api/rule', {
+  return request<API.BaseResponse<API.CurrentUser[]>>('/api/user/search', {
     method: 'GET',
     params: {
       ...params,

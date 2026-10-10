@@ -7,7 +7,6 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import React from 'react';
 
-// Initialize dayjs plugins globally
 dayjs.extend(relativeTime);
 
 import {
@@ -29,6 +28,8 @@ const loginPath = '/user/login';
 /**
  * @see https://umijs.org/docs/api/runtime-config#getinitialstate
  * */
+
+// 第 1 个 export
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
   currentUser?: API.CurrentUser;
@@ -38,10 +39,10 @@ export async function getInitialState(): Promise<{
 }> {
   const fetchUserInfo = async () => {
     try {
-      const msg = await queryCurrentUser({
+      const response = await queryCurrentUser({
         skipErrorHandler: true,
       });
-      return msg.data;
+      return response.data ?? undefined;
     } catch (_error) {
       const { pathname, search, hash } = history.location;
       history.replace(
@@ -50,7 +51,7 @@ export async function getInitialState(): Promise<{
     }
     return undefined;
   };
-  // 如果不是登录页面，执行
+  // 如果不是登录页面 和 注册页面，执行 fetchUserInfo
   const { location } = history;
   if (
     ![loginPath, '/user/register', '/user/register-result'].includes(
@@ -72,7 +73,7 @@ export async function getInitialState(): Promise<{
   };
 }
 
-// ProLayout 支持的api https://procomponents.ant.design/components/layout
+// 第 2 个 export
 export const layout: RunTimeLayoutConfig = ({
   initialState,
   setInitialState,
@@ -89,8 +90,6 @@ export const layout: RunTimeLayoutConfig = ({
       return dom;
     },
     actionsRender: () => {
-      // `locale: false` opts out of the language switcher. ProLayout's own
-      // `locale` prop is a locale string, so narrow to the boolean toggle here.
       const localeEnabled =
         (initialState?.settings as { locale?: boolean })?.locale !== false;
       return [
@@ -100,20 +99,23 @@ export const layout: RunTimeLayoutConfig = ({
       ].filter(Boolean);
     },
     avatarProps: {
-      src: initialState?.currentUser?.avatar,
+      src: initialState?.currentUser?.avatarUrl,
       title: 'ProUser',
       render: (_, avatarChildren) => (
         <AvatarDropdown>{avatarChildren}</AvatarDropdown>
       ),
     },
-    // waterMarkProps: {
-    //   content: initialState?.currentUser?.name,
-    // },
+
     footerRender: () => <Footer />,
+
     onPageChange: () => {
       const { location } = history;
-      // 如果没有登录，重定向到 login
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
+      // 如果不是登录，不是注册，初始状态不是当前用户（也就是登录过的用户），三者全部不满足，重定向到 login
+      if (
+        !initialState?.currentUser &&
+        location.pathname !== loginPath &&
+        location.pathname !== '/user/register'
+      ) {
         history.replace(
           `${loginPath}?redirect=${encodeURIComponent(location.pathname + location.search + location.hash)}`,
         );
@@ -190,7 +192,8 @@ export const layout: RunTimeLayoutConfig = ({
  * @doc https://umijs.org/docs/max/request#配置
  */
 export const request: RequestConfig = {
-  baseURL: isDev ? '' : 'https://pro-api.ant-design-demo.workers.dev',
+  // baseURL: isDev ? '/api' : 'https://pro-api.ant-design-demo.workers.dev',
+  // baseURL: '/api',   这个地方，上面那一行不要
   ...errorConfig,
 };
 

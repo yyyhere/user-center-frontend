@@ -260,7 +260,7 @@ const { initialState } = useModel('@@initialState');
 // File: src/app.tsx
 export const request: RequestConfig = {
   baseURL: 'https://api.example.com',
-  timeout: 10000,
+  timeout: 100000,
   requestInterceptors: [],   // 请求拦截器
   responseInterceptors: [],  // 响应拦截器
 };

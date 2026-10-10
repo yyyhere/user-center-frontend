@@ -1,323 +1,231 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { history, Link } from '@umijs/max';
-import {
-  Button,
-  Col,
-  Form,
-  Input,
-  message,
-  Popover,
-  Progress,
-  Row,
-  Select,
-  Space,
-} from 'antd';
-import type { Store } from 'antd/es/form/interface';
-import type { FC } from 'react';
-import { useEffect, useState } from 'react';
-import { fakeRegister } from './service';
-import useStyles from './styles';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { LoginForm, ProFormText } from '@ant-design/pro-components';
+import { Helmet } from '@umijs/max';
 
-const FormItem = Form.Item;
-const { Option } = Select;
+import { App, Tabs } from 'antd';
+import { createStyles } from 'antd-style';
+import React, { useState } from 'react';
+import { Footer } from '@/components';
+import { SYSTEM_LOGO } from '@/constant';
+import { register } from '@/services/ant-design-pro/api';
+import Settings from '../../../../config/defaultSettings';
 
-const passwordProgressMap: {
-  ok: 'success';
-  pass: 'normal';
-  poor: 'exception';
-} = {
-  ok: 'success',
-  pass: 'normal',
-  poor: 'exception',
-};
+/**
+ * Validate redirect URL to prevent open redirect attacks.
+ * Only allow same-origin relative paths starting with '/'.
+ */
+// const getSafeRedirectUrl = (redirect: string | null): string => {
+//   if (!redirect?.startsWith('/')) return '/';
+//
+//   if (redirect.startsWith('//')) return '/';
+//
+//   try {
+//     const parsed = new URL(redirect, window.location.origin);
+//     if (parsed.origin !== window.location.origin) return '/';
+//     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+//   } catch {
+//     return '/';
+//   }
+// };
 
-const getPasswordStatus = (value?: string) => {
-  if (value && value.length > 9) {
-    return 'ok';
-  }
-  if (value && value.length > 5) {
-    return 'pass';
-  }
-  return 'poor';
-};
+const useStyles = createStyles(({ token }) => {
+  return {
+    action: {
+      marginLeft: '8px',
+      color: 'rgba(0, 0, 0, 0.2)',
+      fontSize: '24px',
+      verticalAlign: 'middle',
+      cursor: 'pointer',
+      transition: 'color 0.3s',
+      '&:hover': {
+        color: token.colorPrimaryActive,
+      },
+    },
+    lang: {
+      width: 42,
+      height: 42,
+      lineHeight: '42px',
+      position: 'fixed',
+      right: 16,
+      borderRadius: token.borderRadius,
+      ':hover': {
+        backgroundColor: token.colorBgTextHover,
+      },
+    },
+    container: {
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      overflow: 'auto',
+      backgroundImage:
+        "url('https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/V-_oS6r-i7wAAAAAAAAAAAAAFl94AQBr')",
+      backgroundSize: '100% 100%',
+    },
+  };
+});
 
-const PasswordProgress: React.FC<{
-  value?: string;
-  styles: Record<string, string>;
-}> = ({ value, styles }) => {
-  const passwordStatus = getPasswordStatus(value);
-  return value?.length ? (
-    <div className={styles[`progress-${passwordStatus}`]}>
-      <Progress
-        status={passwordProgressMap[passwordStatus]}
-        size={6}
-        percent={value.length * 10 > 100 ? 100 : value.length * 10}
-        showInfo={false}
-      />
-    </div>
-  ) : null;
-};
+// const LoginMessage: React.FC<{
+//   content: string;
+// }> = ({ content }) => {
+//   return (
+//     <Alert
+//       style={{
+//         marginBottom: 24,
+//       }}
+//       title={content}
+//       type="error"
+//       showIcon
+//     />
+//   );
+// };
 
-const Register: FC = () => {
+const Register: React.FC = () => {
+  const [type, setType] = useState<string>('account');
   const { styles } = useStyles();
-  const [count, setCount]: [number, any] = useState(0);
-  const [open, setVisible]: [boolean, any] = useState(false);
-  const [prefix, setPrefix]: [string, any] = useState('86');
-  const [popover, setPopover]: [boolean, any] = useState(false);
-  const confirmDirty = false;
-  let interval: number | undefined;
-  const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
-  const passwordStatusMap = {
-    ok: (
-      <div className={styles.success}>
-        <span>强度：强</span>
-      </div>
-    ),
-    pass: (
-      <div className={styles.warning}>
-        <span>强度：中</span>
-      </div>
-    ),
-    poor: (
-      <div className={styles.error}>
-        <span>强度：太短</span>
-      </div>
-    ),
+  // 表单提交
+  const handleSubmit = async (values: API.RegisterParams) => {
+    // 校验
+    // 1、不能为空
+    // 2、账号长度不能小于 4
+    // 3、密码长度不能小于 8
+
+    const response = await register(values);
+    if (!response.data || response.data <= 0) {
+      throw new Error(response.description || response.message || '注册失败');
+    }
+
+    message.success(response.message || '注册成功！');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    const urlParams = new URL(window.location.href).searchParams;
+    const redirectUrl = urlParams.get('redirect') || '/';
+    window.location.href =
+      '/user/login/?redirect=' + encodeURIComponent(redirectUrl);
   };
 
-  const [form] = Form.useForm();
-  useEffect(
-    () => () => {
-      clearInterval(interval);
-    },
-    [interval],
-  );
-  const onGetCaptcha = () => {
-    let counts = 59;
-    setCount(counts);
-    interval = window.setInterval(() => {
-      counts -= 1;
-      setCount(counts);
-      if (counts === 0) {
-        clearInterval(interval);
-      }
-    }, 1000);
-  };
-  const { isPending: submitting, mutate: register } = useMutation({
-    mutationFn: (formValues: Store) => {
-      const payload = {
-        mail: formValues.email,
-        password: formValues.password,
-        confirm: formValues.confirm,
-        mobile: formValues.mobile,
-        captcha: formValues.captcha,
-        prefix: formValues.prefix,
-      };
-      return fakeRegister(payload);
-    },
-    onSuccess: (data, params) => {
-      if (data.status === 'ok') {
-        queryClient.invalidateQueries({ queryKey: ['current-user'] });
-        message.success('注册成功！');
-        history.push({
-          pathname: `/user/register-result?account=${params.mail}`,
-        });
-      }
-    },
-  });
-  const onFinish = (values: Store) => {
-    register(values);
-  };
-  const checkConfirm = (_: any, value: string) => {
-    const promise = Promise;
-    if (value && value !== form.getFieldValue('password')) {
-      return promise.reject('两次输入的密码不匹配!');
-    }
-    return promise.resolve();
-  };
-  const checkPassword = (_: any, value: string) => {
-    const promise = Promise;
-    // 没有值的情况
-    if (!value) {
-      setVisible(!!value);
-      return promise.reject('请输入密码!');
-    }
-    // 有值的情况
-    if (!open) {
-      setVisible(!!value);
-    }
-    setPopover(!popover);
-    if (value.length < 6) {
-      return promise.reject('');
-    }
-    if (value && confirmDirty) {
-      form.validateFields(['confirm']);
-    }
-    return promise.resolve();
-  };
-  const changePrefix = (value: string) => {
-    setPrefix(value);
-  };
-  const password = Form.useWatch('password', form);
-  const passwordStatus = getPasswordStatus(password);
   return (
-    <div className={styles.main}>
-      <h3>注册</h3>
-      <Form form={form} name="UserRegister" onFinish={onFinish}>
-        <FormItem
-          name="email"
-          rules={[
-            {
-              required: true,
-              message: '请输入邮箱地址!',
+    <div className={styles.container}>
+      <Helmet>
+        <title>
+          注册
+          {Settings.title && ` - ${Settings.title}`}
+        </title>
+      </Helmet>
+      <div
+        style={{
+          flex: '1',
+          padding: '32px 0',
+        }}
+      >
+        <LoginForm
+          submitter={{
+            searchConfig: {
+              submitText: '注册',
             },
-            {
-              type: 'email',
-              message: '邮箱地址格式错误!',
-            },
-          ]}
-        >
-          <Input size="large" placeholder="邮箱" />
-        </FormItem>
-        <Popover
-          getPopupContainer={(node) => {
-            if (node?.parentNode) {
-              return node.parentNode as HTMLElement;
-            }
-            return node;
           }}
-          content={
-            open && (
-              <div
-                style={{
-                  padding: '4px 0',
-                }}
-              >
-                {passwordStatusMap[passwordStatus]}
-                <PasswordProgress value={password} styles={styles} />
-                <div
-                  style={{
-                    marginTop: 10,
-                  }}
-                >
-                  <span>请至少输入 6 个字符。请不要使用容易被猜到的密码。</span>
-                </div>
-              </div>
-            )
-          }
-          overlayStyle={{
-            width: 240,
+          contentStyle={{
+            minWidth: 280,
+            maxWidth: '75vw',
           }}
-          placement="right"
-          open={open}
+          logo={<img alt="logo" src={SYSTEM_LOGO} />}
+          title="用户管理中心"
+          // subTitle={'流川枫是 SD 里最具影响力的球员'}
+          initialValues={{
+            autoLogin: true,
+          }}
+          onFinish={async (values) => {
+            await handleSubmit(values as API.RegisterParams);
+          }}
         >
-          <FormItem
-            name="password"
-            className={
-              form.getFieldValue('password') &&
-              form.getFieldValue('password').length > 0 &&
-              styles.password
-            }
-            rules={[
+          <div style={{ height: '50px' }} />
+
+          <Tabs
+            activeKey={type}
+            onChange={setType}
+            centered
+            items={[
               {
-                validator: checkPassword,
+                key: 'account',
+                label: '账号密码注册',
               },
             ]}
-          >
-            <Input
-              size="large"
-              type="password"
-              placeholder="至少6位密码，区分大小写"
-            />
-          </FormItem>
-        </Popover>
-        <FormItem
-          name="confirm"
-          rules={[
-            {
-              required: true,
-              message: '确认密码',
-            },
-            {
-              validator: checkConfirm,
-            },
-          ]}
-        >
-          <Input size="large" type="password" placeholder="确认密码" />
-        </FormItem>
-        <FormItem
-          name="mobile"
-          rules={[
-            {
-              required: true,
-              message: '请输入手机号!',
-            },
-            {
-              pattern: /^\d{11}$/,
-              message: '手机号格式错误!',
-            },
-          ]}
-        >
-          <Space.Compact style={{ width: '100%' }}>
-            <Select
-              size="large"
-              value={prefix}
-              onChange={changePrefix}
-              style={{
-                width: '30%',
-              }}
-            >
-              <Option value="86">+86</Option>
-              <Option value="87">+87</Option>
-            </Select>
+          />
 
-            <Input size="large" placeholder="手机号" />
-          </Space.Compact>
-        </FormItem>
-        <Row gutter={8}>
-          <Col span={16}>
-            <FormItem
-              name="captcha"
-              rules={[
-                {
-                  required: true,
-                  message: '请输入验证码!',
-                },
-              ]}
-            >
-              <Input size="large" placeholder="验证码" />
-            </FormItem>
-          </Col>
-          <Col span={8}>
-            <Button
-              size="large"
-              disabled={!!count}
-              className={styles.getCaptcha}
-              onClick={onGetCaptcha}
-            >
-              {count ? `${count} s` : '获取验证码'}
-            </Button>
-          </Col>
-        </Row>
-        <FormItem>
-          <div className={styles.footer}>
-            <Button
-              size="large"
-              loading={submitting}
-              className={styles.submit}
-              type="primary"
-              htmlType="submit"
-            >
-              <span>注册</span>
-            </Button>
-            <Link to="/user/login" prefetch>
-              <span>使用已有账户登录</span>
-            </Link>
-          </div>
-        </FormItem>
-      </Form>
+          {type === 'account' && (
+            <>
+              <ProFormText
+                name="userAccount"
+                fieldProps={{
+                  size: 'large',
+                  prefix: <UserOutlined />,
+                }}
+                placeholder={'请输入账号，长度不小于 4 位'}
+                rules={[
+                  {
+                    required: true,
+                    message: '账号是必填项！',
+                  },
+                  {
+                    min: 4,
+                    type: 'string',
+                    message: '账号长度不能小于 4 位',
+                  },
+                ]}
+              />
+              <ProFormText.Password
+                name="userPassword"
+                fieldProps={{
+                  size: 'large',
+                  prefix: <LockOutlined />,
+                }}
+                placeholder={'请输入密码，长度不小于 8 位'}
+                rules={[
+                  {
+                    required: true,
+                    message: '密码是必填项！',
+                  },
+                  {
+                    min: 8,
+                    type: 'string',
+                    message: '密码长度不能小于 8 位',
+                  },
+                ]}
+              />
+              <ProFormText.Password
+                name="checkPassword"
+                fieldProps={{
+                  size: 'large',
+                  prefix: <LockOutlined />,
+                }}
+                placeholder={'请再次输入密码'}
+                rules={[
+                  {
+                    required: true,
+                    message: '确认密码是必填项！',
+                  },
+                  {
+                    min: 8,
+                    type: 'string',
+                    message: '确认密码长度不能小于 8 位',
+                  },
+                ]}
+              />
+            </>
+          )}
+        </LoginForm>
+      </div>
+      <Footer />
     </div>
   );
 };
+
 export default Register;
+
+// 写 你好 的代码
+// const Page = () => {
+//   return <h1 style={{ fontSize: '80px' }}>你好</h1>;
+// };
+//
+// export default Page;

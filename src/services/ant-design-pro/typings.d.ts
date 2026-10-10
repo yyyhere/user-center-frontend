@@ -1,33 +1,42 @@
 // @ts-ignore
 /* eslint-disable */
 
+
 declare namespace API {
+  type BaseResponse<T> = {
+    code: number;
+    data: T | null;
+    message: string;
+    description: string;
+  };
+
   type CurrentUser = {
-    name?: string;
-    avatar?: string;
-    userid?: string;
+
+    id?: number;
+    userName?: string;
+    userAccount?: string;
+    avatarUrl?: string;
     email?: string;
-    signature?: string;
-    title?: string;
-    group?: string;
-    tags?: { key?: string; label?: string }[];
-    notifyCount?: number;
-    unreadCount?: number;
-    country?: string;
-    access?: string;
-    geographic?: {
-      province?: { label?: string; key?: string };
-      city?: { label?: string; key?: string };
-    };
-    address?: string;
-    phone?: string;
+    gender?: number;
+    status?: number;
+    createTime?: Date;
+    role?: number;
   };
 
   type LoginResult = {
-    status?: string;
-    type?: string;
-    currentAuthority?: string;
+    id?: number;
+    userName?: string;
+    userAccount?: string;
+    avatarUrl?: string;
+    email?: string;
+    gender?: number;
+    status?: number;
+    createTime?: Date;
+    role?: number;
   };
+
+  // 返回的都不是一个对象，就是类型本身，有多个东西叫对象，你就一个东西，那不就是类型
+  type RegisterResult = number;
 
   type PageParams = {
     current?: number;
@@ -62,10 +71,21 @@ declare namespace API {
   };
 
   type LoginParams = {
-    username?: string;
-    password?: string;
+    userAccount?: string;
+    userPassword?: string;
     autoLogin?: boolean;
     type?: string;
+  };
+
+  type RegisterParams = {
+    userAccount?: string;   // userAccount 是可选项，可填可不填
+    userPassword?: string;
+    checkPassword?: string;
+    type?: string;
+  };
+
+  type UserSearchParams = {
+    userName?: string;
   };
 
   type ErrorResponse = {
@@ -99,3 +119,4 @@ declare namespace API {
     type?: NoticeIconItemType;
   };
 }
+

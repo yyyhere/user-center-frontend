@@ -1,108 +1,97 @@
-﻿import type { RequestOptions } from '@@/plugin-request/request';
+import type { RequestOptions } from '@@/plugin-request/request';
 import type { RequestConfig } from '@umijs/max';
-import { getIntl } from '@umijs/max';
+
 import { message, notification } from 'antd';
 
-// 错误处理方案： 错误类型
-enum ErrorShowType {
-  SILENT = 0,
-  WARN_MESSAGE = 1,
-  ERROR_MESSAGE = 2,
-  NOTIFICATION = 3,
-  REDIRECT = 9,
-}
-// 与后端约定的响应数据格式
-interface ResponseStructure {
-  success: boolean;
-  data: unknown;
-  errorCode?: number;
-  errorMessage?: string;
-  showType?: ErrorShowType;
-}
+type BaseResponse<T = unknown> = API.BaseResponse<T>;
+
+type BusinessErrorInfo = {
+  code: number;
+  message: string;
+  description?: string;
+  data?: unknown;
+};
+
+type BusinessError = Error & {
+  name: 'BizError';
+  info: BusinessErrorInfo;
+};
+
+const createBusinessError = (response: BaseResponse): BusinessError => {
+  const error = new Error(
+    response.description || response.message || '请求失败',
+  ) as BusinessError;
+  error.name = 'BizError';
+  error.info = {
+    code: response.code,
+    message: response.description || response.message || '请求失败',
+    description: response.description,
+    data: response.data,
+  };
+  return error;
+};
 
 /**
- * @name 错误处理
- * pro 自带的错误处理， 可以在这里做自己的改动
- * @doc https://umijs.org/docs/max/request#配置
+ * 后端所有成功响应使用 { code: 0, data, message, description }。
+ * 业务失败仍然是 HTTP 200，因此必须检查业务 code 并主动抛错。
  */
 export const errorConfig: RequestConfig = {
-  // 错误处理： umi@3 的错误处理方案。
   errorConfig: {
-    // 错误抛出
-    errorThrower: (res) => {
-      const { success, data, errorCode, errorMessage, showType } =
-        res as unknown as ResponseStructure;
-      if (!success) {
-        const error: any = new Error(errorMessage);
-        error.name = 'BizError';
-        error.info = { errorCode, errorMessage, showType, data };
-        throw error; // 抛出自制的错误
+    errorThrower: (response) => {
+      const result = response as BaseResponse | undefined;
+      if (result && typeof result.code === 'number' && result.code !== 0) {
+        throw createBusinessError(result);
       }
     },
-    // 错误接收及处理
-    errorHandler: (error: any, opts: any) => {
-      if (opts?.skipErrorHandler) throw error;
-      // 我们的 errorThrower 抛出的错误。
-      if (error.name === 'BizError') {
-        const errorInfo: ResponseStructure | undefined = error.info;
-        if (errorInfo) {
-          const { errorMessage, errorCode } = errorInfo;
-          switch (errorInfo.showType) {
-            case ErrorShowType.SILENT:
-              // do nothing
-              break;
-            case ErrorShowType.WARN_MESSAGE:
-              message.warning(errorMessage);
-              break;
-            case ErrorShowType.ERROR_MESSAGE:
-              message.error(errorMessage);
-              break;
-            case ErrorShowType.NOTIFICATION:
-              notification.open({
-                title: errorCode,
-                description: errorMessage,
-              });
-              break;
-            case ErrorShowType.REDIRECT:
-              window.location.href = '/user/login';
-              break;
-            default:
-              message.error(errorMessage);
-          }
-        }
-      } else if (error.response) {
-        // Axios 的错误
-        // 请求成功发出且服务器也响应了状态码，但状态代码超出了 2xx 的范围
-        message.error(`Response status:${error.response.status}`);
-      } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        message.error(
-          getIntl().formatMessage({
-            id: 'app.request.offline',
-            defaultMessage:
-              'Network unavailable. Please check your connection and try again.',
-          }),
-        );
-      } else if (error.request) {
-        message.error('None response! Please retry.');
-      } else {
-        message.error('Request error, please retry.');
+    errorHandler: (error: any, options: any) => {
+      if (options?.skipErrorHandler) {
+        throw error;
       }
+
+      if (error?.name === 'BizError') {
+        const info = (error as BusinessError).info;
+        const detail = info.description?.trim();
+        const content = detail || info.message || '请求失败';
+
+        if (info.code === 40100) {
+          message.error(content);
+          if (window.location.pathname !== '/user/login') {
+            const redirect = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            window.location.href = `/user/login?redirect=${encodeURIComponent(redirect)}`;
+          }
+        } else if (info.code === 40101) {
+          message.warning(content);
+        } else if (info.code >= 50000) {
+          notification.error({
+            message: info.message,
+            description: detail || '请稍后重试',
+          });
+        } else {
+          message.error(content);
+        }
+        throw error;
+      }
+
+      if (error?.response) {
+        message.error(`请求失败（HTTP ${error.response.status}）`);
+      } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        message.error('网络不可用，请检查网络连接后重试。');
+      } else if (error?.request) {
+        message.error('服务器没有响应，请稍后重试。');
+      } else {
+        message.error(error?.message || '请求失败，请稍后重试。');
+      }
+      throw error;
     },
   },
-
-  // 请求拦截器
-  requestInterceptors: [
-    (config: RequestOptions) => {
-      // 拦截请求配置，进行个性化处理。
-      // 示例：为请求附加 token（按需启用）
-      // const token = localStorage.getItem('token');
-      // if (token) {
-      //   config.headers = { ...config.headers, Authorization: `Bearer ${token}` };
-      // }
-      return config;
+  requestInterceptors: [(config: RequestOptions) => config],
+  responseInterceptors: [
+    (response) => {
+      const result = response.data as BaseResponse | undefined;
+      if (result && typeof result.code === 'number' && result.code !== 0) {
+        throw createBusinessError(result);
+      }
+      return response;
     },
   ],
-
-  // 响应拦截器
-  responseInterceptors: [],
 };
