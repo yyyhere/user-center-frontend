@@ -2,6 +2,8 @@
 
 这是一个个人学习项目的前端部分，提供用户注册、登录和管理员用户列表等功能。项目基于 Ant Design Pro 改造，后端为独立的 Spring Boot 服务。
 
+<img width="1280" height="735" alt="image" src="https://github.com/user-attachments/assets/83da24dd-01aa-4178-adcc-378ccf281df2" />
+
 ## 功能
 
 - 用户注册：使用账号和密码创建用户。
