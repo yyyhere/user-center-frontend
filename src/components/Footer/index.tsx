@@ -19,7 +19,7 @@ import React from 'react';
 //
 // const REPO_URL = getRepoUrl();
 
-const REPO_URL = 'https://github.com/yyyhere';
+const REPO_URL = 'https://github.com/yyyhere?tab=repositories';
 
 // const COMMIT_HASH = process.env.COMMIT_HASH || '';  有仓库了用
 

@@ -53,10 +53,9 @@ export async function getInitialState(): Promise<{
   };
   // 如果不是登录页面 和 注册页面，执行 fetchUserInfo
   const { location } = history;
+  const pathname = location.pathname.replace(/\/+$/, '') || '/';
   if (
-    ![loginPath, '/user/register', '/user/register-result'].includes(
-      location.pathname,
-    )
+    ![loginPath, '/user/register', '/user/register-result'].includes(pathname)
   ) {
     const currentUser = await fetchUserInfo();
     return {
@@ -111,10 +110,11 @@ export const layout: RunTimeLayoutConfig = ({
     onPageChange: () => {
       const { location } = history;
       // 如果不是登录，不是注册，初始状态不是当前用户（也就是登录过的用户），三者全部不满足，重定向到 login
+      const pathname = location.pathname.replace(/\/+$/, '') || '/';
       if (
         !initialState?.currentUser &&
-        location.pathname !== loginPath &&
-        location.pathname !== '/user/register'
+        pathname !== loginPath &&
+        pathname !== '/user/register'
       ) {
         history.replace(
           `${loginPath}?redirect=${encodeURIComponent(location.pathname + location.search + location.hash)}`,

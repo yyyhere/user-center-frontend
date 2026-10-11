@@ -202,7 +202,7 @@ const Login: React.FC = () => {
             <Button
               type="link"
               // href="/user/register"
-              href={`/user/register/?redirect=${encodeURIComponent(redirectUrl)}`}
+              href={`/user/register?redirect=${encodeURIComponent(redirectUrl)}`}
               style={{
                 float: 'left',
                 padding: 0,

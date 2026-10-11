@@ -1,7 +1,6 @@
 // @ts-ignore
 /* eslint-disable */
 
-
 declare namespace API {
   type BaseResponse<T> = {
     code: number;
